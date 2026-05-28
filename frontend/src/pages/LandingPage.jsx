@@ -31,18 +31,21 @@ const pageStyle = {
 const containerStyle = { 
   maxWidth: '600px' }
 
-  const btnPrimary = { 
+  const btnPrimary = {
+  color: '#F97316',
+  textcolor: '#1E3A8A',
   padding: '0.85rem 2rem', 
   background: 'var(--accent)', 
   borderRadius: '8px', color: 'white', 
   textDecoration: 'none', fontWeight: 'bold' }
 
   const btnSecondary = { 
+  color: '#F97316',
+  textcolor: '#1E3A8A',
   padding: '0.85rem 2rem', 
-  background: 'transparent', 
+  background: 'var(--accent)', 
   border: '1px solid var(--border)', 
   borderRadius: '8px', 
-  color: 'var(--text)', 
   textDecoration: 'none', 
   fontWeight: 'bold' }
 
