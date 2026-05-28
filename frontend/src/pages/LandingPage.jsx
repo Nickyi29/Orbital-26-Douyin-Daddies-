@@ -32,18 +32,16 @@ const containerStyle = {
   maxWidth: '600px' }
 
   const btnPrimary = {
-  color: '#F97316',
-  textcolor: '#1E3A8A',
+  color: '#1E3A8A',
   padding: '0.85rem 2rem', 
-  background: 'var(--accent)', 
-  borderRadius: '8px', color: 'white', 
+  background: '#F97316', 
+  borderRadius: '8px',
   textDecoration: 'none', fontWeight: 'bold' }
 
   const btnSecondary = { 
-  color: '#F97316',
-  textcolor: '#1E3A8A',
+  color: '#1E3A8A',
   padding: '0.85rem 2rem', 
-  background: 'var(--accent)', 
+  background: '#F97316',
   border: '1px solid var(--border)', 
   borderRadius: '8px', 
   textDecoration: 'none', 
