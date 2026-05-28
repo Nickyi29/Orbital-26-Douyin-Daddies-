@@ -8,7 +8,7 @@ export default function LandingPage() {
           Welcome to <span style={{ color: '#1E3A8A' }}>SkillSwap</span>
         </h1>
         <p style={{ fontSize: '1.2rem', color: 'var(--muted)', marginBottom: '2rem' }}>
-          The official module-swapping platform for NUS students. Trade the modules you excel at for the help you need.
+          The skill-swapping platform for NUS students. Trade the skills you excel at for the help you need.
         </p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
           <Link to="/signup" style={btnPrimary}>Create Account</Link>
@@ -32,17 +32,16 @@ const containerStyle = {
   maxWidth: '600px' }
 
   const btnPrimary = {
-  color: '#1E3A8A',
+  color: 'white',
   padding: '0.85rem 2rem', 
   background: '#F97316', 
   borderRadius: '8px',
   textDecoration: 'none', fontWeight: 'bold' }
 
   const btnSecondary = { 
-  color: '#1E3A8A',
+  color: 'white',
   padding: '0.85rem 2rem', 
   background: '#F97316',
-  border: '1px solid var(--border)', 
   borderRadius: '8px', 
   textDecoration: 'none', 
   fontWeight: 'bold' }
