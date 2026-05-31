@@ -11,6 +11,7 @@ export default function SignupPage() {
     e.preventDefault()
     setError(null)
 
+
     if (!form.email.endsWith('@u.nus.edu') && !form.email.endsWith('@nus.edu.sg')) {
       setError('Please use your NUS email to join SkillSwap')
       return
@@ -35,12 +36,12 @@ export default function SignupPage() {
 
     navigate('/dashboard')
   }
-
+//use these settings 
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h2 style={{ marginBottom: '2rem', textAlign: 'center' }}>Join SkillSwap</h2>
-        {error && <p style={{ color: '#ef4444', marginBottom: '1rem', textAlign: 'center' }}>{error}</p>}
+        <h2 style={{ marginBottom: '2rem', textAlign: 'center', color: '#1E3A8A', fontWeight: '600' }}>Join SkillSwap</h2>
+        {error && <p style={{ color: '#EF4444', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>{error}</p>}
         
         <form onSubmit={handleSubmit}>
           <div style={fieldStyle}>
@@ -57,17 +58,71 @@ export default function SignupPage() {
           </div>
           <button type="submit" style={btnStyle}>Sign Up</button>
         </form>
-        <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
-          Already have an account? <Link to="/login" style={{ color: 'var(--accent)' }}>Log in</Link>
+        <p style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem', color: '#475569' }}>
+          Already have an account? <Link to="/login" style={{ color: '#F97316', fontWeight: '600', textDecoration: 'none' }}>Log in</Link>
         </p>
       </div>
     </div>
   )
 }
 
-const pageStyle = { minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }
-const cardStyle = { width: '100%', maxWidth: '420px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2.5rem' }
-const fieldStyle = { display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }
-const labelStyle = { fontSize: '0.8rem', color: 'var(--muted)' }
-const inputStyle = { padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none' }
-const btnStyle = { width: '100%', padding: '0.85rem', background: 'var(--accent)', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '1rem' }
+
+
+const pageStyle = { 
+  minHeight: '100vh', 
+  backgroundColor: '#F0F4F8', 
+  display: 'flex', 
+  alignItems: 'center', 
+  justifyContent: 'center', 
+  padding: '2rem', 
+  fontFamily: "'Poppins', sans-serif",
+  color: '#0F172A' 
+}
+
+const cardStyle = { 
+  width: '100%', 
+  maxWidth: '420px', 
+  backgroundColor: '#FFFFFF', 
+  border: '1px solid #E2E8F0', 
+  borderRadius: '16px', 
+  padding: '2.5rem', 
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+}
+
+const fieldStyle = { 
+  display: 'flex', 
+  flexDirection: 'column', 
+  gap: '0.5rem', 
+  marginBottom: '1.5rem' 
+}
+
+const labelStyle = { 
+  fontSize: '0.875rem', 
+  fontWeight: '500',
+  color: '#1E3A8A' 
+}
+
+const inputStyle = { 
+  padding: '0.75rem 1rem', 
+  borderRadius: '8px', 
+  backgroundColor: '#FFFFFF', 
+  border: '1px solid #CBD5E1', 
+  color: '#0F172A', 
+  fontSize: '0.95rem', 
+  outline: 'none', 
+  fontFamily: "'Poppins', sans-serif" 
+}
+
+const btnStyle = { 
+  width: '100%', 
+  padding: '0.85rem', 
+  backgroundColor: '#F97316', 
+  border: 'none', 
+  borderRadius: '8px', 
+  color: '#FFFFFF', 
+  fontSize: '1rem', 
+  fontWeight: '600',
+  cursor: 'pointer', 
+  marginTop: '0.5rem', 
+  fontFamily: "'Poppins', sans-serif" 
+}
