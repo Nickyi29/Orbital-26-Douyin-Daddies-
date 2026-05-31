@@ -58,16 +58,53 @@ export default function SignupPage() {
           <button type="submit" style={btnStyle}>Sign Up</button>
         </form>
         <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
-          Already have an account? <Link to="/login" style={{ color: 'var(--accent)' }}>Log in</Link>
+          Already have an account? <Link to="/login" style={{ color:  '#1E3A8A'}}>Log in</Link>
         </p>
       </div>
     </div>
   )
 }
 
-const pageStyle = { minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }
-const cardStyle = { width: '100%', maxWidth: '420px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2.5rem' }
-const fieldStyle = { display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }
-const labelStyle = { fontSize: '0.8rem', color: 'var(--muted)' }
-const inputStyle = { padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none' }
-const btnStyle = { width: '100%', padding: '0.85rem', background: 'var(--accent)', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', marginTop: '1rem' }
+const pageStyle = 
+{ minHeight: '100vh',
+  background: 'var(--bg)', 
+  display: 'flex', 
+  alignItems: 'center', 
+  justifyContent: 'center', 
+  padding: '2rem' }
+
+const cardStyle = 
+{ width: '100%', 
+  maxWidth: '420px', 
+  background: '#F97316',
+  border: '1px solid var(--border)', 
+  borderRadius: '16px', 
+  padding: '2.5rem' }
+
+const fieldStyle =
+ { display: 'flex', 
+   flexDirection: 'column', 
+   gap: '0.4rem', 
+   marginBottom: '1rem' }
+
+const labelStyle = 
+{ fontSize: '0.8rem', 
+  color: 'var(--muted)' }
+
+const inputStyle = 
+{ padding: '0.75rem 1rem', 
+  borderRadius: '8px', 
+  background: 'var(--bg)', 
+  border: '1px solid var(--border)', 
+  color: 'var(--text)', 
+  outline: 'none' }
+
+const btnStyle = 
+{ width: '100%', 
+  padding: '0.85rem', 
+  background: '#1E3A8A',
+  border: 'none', 
+  borderRadius: '8px', 
+  color: 'white', 
+  cursor: 'pointer', 
+  marginTop: '1rem' }
