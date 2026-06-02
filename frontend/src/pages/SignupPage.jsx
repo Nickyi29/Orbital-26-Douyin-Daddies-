@@ -7,35 +7,62 @@ export default function SignupPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState(null)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
+const handleSubmit = async (e) => {
+  e.preventDefault()
+  setError(null)
 
-
-    if (!form.email.endsWith('@u.nus.edu') && !form.email.endsWith('@nus.edu.sg')) {
-      setError('Please use your NUS email to join SkillSwap')
-      return
-    }
-
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-    })
-
-    if (signUpError) {
-      setError(signUpError.message)
-      return
-    }
-
-    await supabase.from('profiles').insert({
-      id: data.user.id,
-      name: form.name,
-      email: form.email,
-      credits: 0
-    })
-
-    navigate('/dashboard')
+  if (
+    !form.email.endsWith('@u.nus.edu') &&
+    !form.email.endsWith('@nus.edu.sg')
+  ) {
+    setError('Please use your NUS email to join SkillSwap')
+    return
   }
+
+  const { data, error: signUpError } = await supabase.auth.signUp({
+    email: form.email,
+    password: form.password,
+    options: {
+      data: {
+      display_name: form.name,
+      full_name: form.name,      
+    },
+    },
+  })
+
+  if (signUpError) {
+    setError(signUpError.message)
+    return
+  }
+
+  const userId = data?.user?.id
+
+  if (!userId) {
+    setError('Account may already exist. Please check your email or try logging in.')
+    return
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: userId,
+        name: form.name,
+        email: form.email,
+        credits: 0,
+      },
+      {
+        onConflict: 'id',
+      }
+    )
+
+  if (profileError) {
+    setError(profileError.message)
+    return
+  }
+
+  navigate('/dashboard')
+}
 //use these settings 
   return (
     <div style={pageStyle}>
