@@ -41,159 +41,126 @@ export default function ProfileCreatePage() {
   }
 
   const handleNextStep = () => {
-    if (!form.course) { setError('Please select your course'); return }
-    if (!form.year_of_study) { setError('Please select your year'); return }
+    if (!form.course)          { setError('Please select your course');          return }
+    if (!form.year_of_study)   { setError('Please select your year');            return }
     if (!form.telegram_handle) { setError('Please enter your Telegram handle'); return }
     setError('')
     setStep(2)
   }
 
-  const handleSubmit = async () => {
-    if (selectedOffering.length === 0) {
-      setError('Please add at least one skill you can teach')
-      return
-    }
-    if (selectedLearning.length === 0) {
-      setError('Please add at least one skill you want to learn')
-      return
-    }
-
-    setLoading(true)
-
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        telegram_handle: form.telegram_handle,
-        course: form.course,
-        year_of_study: form.year_of_study,
-        bio: form.bio,
-        profile_complete: true,
-      })
-      .eq('id', user.id)
-
-    if (profileError) {
-      setError(profileError.message)
-      setLoading(false)
-      return
-    }
-
-    const offeringRows = selectedOffering.map(name => ({
-      user_id: user.id,
-      name,
-      category: SKILLS.find(s => s.name === name)?.category || 'Other',
-      type: 'offering',
-    }))
-
-    const learningRows = selectedLearning.map(name => ({
-      user_id: user.id,
-      name,
-      category: SKILLS.find(s => s.name === name)?.category || 'Other',
-      type: 'learning',
-    }))
-
-    const { error: skillsError } = await supabase
-      .from('skills')
-      .insert([...offeringRows, ...learningRows])
-
-    if (skillsError) {
-      setError(skillsError.message)
-      setLoading(false)
-      return
-    }
-
-    await fetchProfile(user.id)
-    navigate('/dashboard')
+const handleSubmit = async () => {
+  if (selectedOffering.length === 0) {
+    setError('Please add at least one skill you can teach')
+    return
   }
+  if (selectedLearning.length === 0) {
+    setError('Please add at least one skill you want to learn')
+    return
+  }
+
+  setLoading(true)
+  setError('')
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      telegram_handle:  form.telegram_handle,
+      course:           form.course,
+      year_of_study:    form.year_of_study,
+      bio:              form.bio,
+      profile_complete: true,
+    })
+    .eq('id', user.id)
+
+  if (profileError) {
+    setError('Failed to save profile: ' + profileError.message)
+    setLoading(false)
+    return
+  }
+
+  await supabase.from('skills').delete().eq('user_id', user.id)
+
+  const offeringRows = selectedOffering.map(name => ({
+    user_id:  user.id,
+    name,
+    category: SKILLS.find(s => s.name === name)?.category || 'Other',
+    type:     'offering',
+  }))
+
+  const learningRows = selectedLearning.map(name => ({
+    user_id:  user.id,
+    name,
+    category: SKILLS.find(s => s.name === name)?.category || 'Other',
+    type:     'learning',
+  }))
+
+  const { error: skillsError } = await supabase
+    .from('skills')
+    .insert([...offeringRows, ...learningRows])
+
+  if (skillsError) {
+    setError('Failed to save skills: ' + skillsError.message)
+    setLoading(false)
+    return
+  }
+
+  await fetchProfile(user.id)
+
+  setTimeout(() => {
+    navigate('/dashboard')
+  }, 100)
+}
 
   const categories = [...new Set(SKILLS.map(s => s.category))]
 
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
+
         <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-          <h2
-            style={{
-              fontSize: '1.6rem',
-              fontWeight: 800,
-              marginBottom: '0.4rem',
-              color: '#1E3A8A',
-            }}
-          >
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 800,
+                       marginBottom: '0.4rem', color: '#1E3A8A' }}>
             Set up your profile
           </h2>
           <p style={{ color: '#64748B', fontSize: '0.9rem' }}>
             Step {step} of 2 — {step === 1 ? 'Basic Info' : 'Your Skills'}
           </p>
-          <div
-            style={{
-              marginTop: '1rem',
-              background: '#E5E7EB',
-              borderRadius: '99px',
+          <div style={{ marginTop: '1rem', background: '#E5E7EB',
+                        borderRadius: '99px', height: '4px', overflow: 'hidden' }}>
+            <div style={{
+              width: step === 1 ? '50%' : '100%',
+              background: '#F97316',
               height: '4px',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                width: step === 1 ? '50%' : '100%',
-                background: '#FACC15',
-                height: '4px',
-                borderRadius: '99px',
-                transition: 'width 0.3s ease',
-              }}
-            />
+              borderRadius: '99px',
+              transition: 'width 0.3s ease',
+            }} />
           </div>
         </div>
 
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <Field label="Telegram Handle">
-              <input
-                name="telegram_handle"
-                value={form.telegram_handle}
-                onChange={handleChange}
-                placeholder="@yourhandle"
-                style={inputStyle}
-              />
+              <input name="telegram_handle" value={form.telegram_handle}
+                onChange={handleChange} placeholder="@yourhandle" style={inputStyle} />
             </Field>
-
             <Field label="Course / Programme">
-              <select
-                name="course"
-                value={form.course}
-                onChange={handleChange}
-                style={inputStyle}
-              >
+              <select name="course" value={form.course}
+                onChange={handleChange} style={inputStyle}>
                 <option value="">Select your course</option>
-                {COURSES.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-
             <Field label="Year of Study">
-              <select
-                name="year_of_study"
-                value={form.year_of_study}
-                onChange={handleChange}
-                style={inputStyle}
-              >
+              <select name="year_of_study" value={form.year_of_study}
+                onChange={handleChange} style={inputStyle}>
                 <option value="">Select your year</option>
-                {YEARS.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
+                {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </Field>
-
             <Field label="Bio (optional)">
-              <textarea
-                name="bio"
-                value={form.bio}
-                onChange={handleChange}
+              <textarea name="bio" value={form.bio} onChange={handleChange}
                 placeholder="Tell others a little about yourself..."
-                rows={3}
-                style={{ ...inputStyle, resize: 'none' }}
-              />
+                rows={3} style={{ ...inputStyle, resize: 'none' }} />
             </Field>
 
             {error && <p style={errorStyle}>{error}</p>}
@@ -206,16 +173,12 @@ export default function ProfileCreatePage() {
 
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
             <div>
               <p style={sectionLabel}>
-                Skills I can <span style={{ color: 'var(--success)' }}>teach</span>
-                <span
-                  style={{
-                    color: '#64748B',
-                    fontSize: '0.8rem',
-                    marginLeft: '0.5rem',
-                  }}
-                >
+                Skills I can <span style={{ color: '#16a34a' }}>teach</span>
+                <span style={{ color: '#64748B', fontSize: '0.8rem',
+                               marginLeft: '0.5rem' }}>
                   ({selectedOffering.length}/5)
                 </span>
               </p>
@@ -224,16 +187,12 @@ export default function ProfileCreatePage() {
                   <p style={categoryLabel}>{category}</p>
                   <div style={tagContainer}>
                     {SKILLS.filter(s => s.category === category).map(skill => (
-                      <button
-                        key={skill.name}
-                        onClick={() =>
-                          toggleSkill(skill.name, selectedOffering, setSelectedOffering)
-                        }
+                      <button key={skill.name}
+                        onClick={() => toggleSkill(
+                          skill.name, selectedOffering, setSelectedOffering
+                        )}
                         style={selectedOffering.includes(skill.name)
-                          ? selectedTagStyle
-                          : tagStyle
-                        }
-                      >
+                          ? selectedTagStyle : tagStyle}>
                         {skill.name}
                       </button>
                     ))}
@@ -244,14 +203,9 @@ export default function ProfileCreatePage() {
 
             <div>
               <p style={sectionLabel}>
-                Skills I want to <span style={{ color: 'var(--accent)' }}>learn</span>
-                <span
-                  style={{
-                    color: '#64748B',
-                    fontSize: '0.8rem',
-                    marginLeft: '0.5rem',
-                  }}
-                >
+                Skills I want to <span style={{ color: '#2f5acf' }}>learn</span>
+                <span style={{ color: '#64748B', fontSize: '0.8rem',
+                               marginLeft: '0.5rem' }}>
                   ({selectedLearning.length}/5)
                 </span>
               </p>
@@ -260,16 +214,12 @@ export default function ProfileCreatePage() {
                   <p style={categoryLabel}>{category}</p>
                   <div style={tagContainer}>
                     {SKILLS.filter(s => s.category === category).map(skill => (
-                      <button
-                        key={skill.name}
-                        onClick={() =>
-                          toggleSkill(skill.name, selectedLearning, setSelectedLearning)
-                        }
+                      <button key={skill.name}
+                        onClick={() => toggleSkill(
+                          skill.name, selectedLearning, setSelectedLearning
+                        )}
                         style={selectedLearning.includes(skill.name)
-                          ? selectedTagStyleLearning
-                          : tagStyle
-                        }
-                      >
+                          ? selectedTagStyleLearning : tagStyle}>
                         {skill.name}
                       </button>
                     ))}
@@ -281,28 +231,22 @@ export default function ProfileCreatePage() {
             {error && <p style={errorStyle}>{error}</p>}
 
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setStep(1)}
-                style={{
-                  ...btnStyle,
-                  background: 'transparent',
-                  border: '1px solid #d2dfef',
-                  color: '#64748B',
-                  boxShadow: 'none',
-                }}
-              >
+              <button onClick={() => setStep(1)}
+                style={{ ...btnStyle, background: 'transparent',
+                         border: '1px solid #d2dfef', color: '#64748B' }}>
                 ← Back
               </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                style={{ ...btnStyle, flex: 1 }}
-              >
-                {loading ? 'Saving...' : 'Complete Profile →'}
+              <button onClick={handleSubmit} disabled={loading}
+                style={{ ...btnStyle, flex: 1,
+                         opacity: loading ? 0.7 : 1,
+                         cursor: loading ? 'not-allowed' : 'pointer' }}>
+                {loading ? 'Saving profile...' : 'Complete Profile →'}
               </button>
             </div>
+
           </div>
         )}
+
       </div>
     </div>
   )
@@ -362,7 +306,6 @@ const btnStyle = {
   cursor: 'pointer',
   fontWeight: 700,
   fontFamily: 'inherit',
-  boxShadow: 'none',
 }
 
 const errorStyle = {

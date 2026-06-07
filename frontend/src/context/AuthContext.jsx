@@ -1,12 +1,29 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext({})
 
 export function AuthProvider({ children }) {
-  const [user, setUser]                   = useState(null)
-  const [profile, setProfile]             = useState(null)
-  const [loading, setLoading]             = useState(true)
+  const [user, setUser]       = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  // useCallback ensures fetchProfile is stable and doesn't cause stale closures
+  const fetchProfile = useCallback(async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('fetchProfile error:', error.message)
+      setProfile(null)
+    } else {
+      setProfile(data)    // ← updates context with latest data including profile_complete
+    }
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -23,17 +40,7 @@ export function AuthProvider({ children }) {
       }
     )
     return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchProfile = async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
-    setLoading(false)
-  }
+  }, [fetchProfile])
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, fetchProfile }}>

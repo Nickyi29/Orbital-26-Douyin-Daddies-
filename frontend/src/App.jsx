@@ -7,19 +7,31 @@ import ProfileCreatePage  from './pages/ProfileCreatePage'
 import DashboardPage      from './pages/DashboardPage'
 
 function ProtectedRoute({ children }) {
-  const { user, profile } = useAuth()
+  const { user, profile, loading } = useAuth()
+
+  if (loading) return <div style={loadingStyle}>Loading...</div>
 
   if (!user) return <Navigate to="/login" />
-  if (!profile?.profile_complete) return <Navigate to="/create-profile" />
+
+  if (profile && profile.profile_complete === false) {
+    return <Navigate to="/create-profile" />
+  }
+
+  if (!profile) return <div style={loadingStyle}>Loading...</div>
 
   return children
 }
 
 function ProfileRoute({ children }) {
-  const { user, profile } = useAuth()
+  const { user, profile, loading } = useAuth()
+
+  if (loading) return <div style={loadingStyle}>Loading...</div>
 
   if (!user) return <Navigate to="/login" />
-  if (profile?.profile_complete) return <Navigate to="/dashboard" />
+
+  if (profile && profile.profile_complete === true) {
+    return <Navigate to="/dashboard" />
+  }
 
   return children
 }
@@ -27,15 +39,15 @@ function ProfileRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/"                element={<LandingPage />} />
-      <Route path="/login"           element={<LoginPage />} />
-      <Route path="/signup"          element={<SignupPage />} />
-      <Route path="/create-profile"  element={
+      <Route path="/"               element={<LandingPage />} />
+      <Route path="/login"          element={<LoginPage />} />
+      <Route path="/signup"         element={<SignupPage />} />
+      <Route path="/create-profile" element={
         <ProfileRoute>
           <ProfileCreatePage />
         </ProfileRoute>
       } />
-      <Route path="/dashboard"       element={
+      <Route path="/dashboard"      element={
         <ProtectedRoute>
           <DashboardPage />
         </ProtectedRoute>
@@ -52,4 +64,14 @@ export default function App() {
       </AuthProvider>
     </BrowserRouter>
   )
+}
+
+const loadingStyle = {
+  minHeight: '100vh',
+  background: '#F8FBFF',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#64748B',
+  fontSize: '0.95rem',
 }
