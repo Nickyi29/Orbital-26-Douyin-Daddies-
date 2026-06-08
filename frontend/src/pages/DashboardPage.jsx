@@ -5,23 +5,32 @@ import { useAuth } from '../context/AuthContext'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { user } = useAuth() 
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const [profile, setProfile]   = useState(null)
+  const [skills, setSkills]     = useState([])
+  const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id) 
-        .single()
-      
-      setProfile(data)
+    const fetchData = async () => {
+      // edited this section to fetch skills together with profile, to avoid multiple round trips and ensure data consistency on load
+      const [profileRes, skillsRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('skills')
+          .select('*')
+          .eq('user_id', user.id)
+      ])
+
+      setProfile(profileRes.data)
+      setSkills(skillsRes.data || [])
       setLoading(false)
     }
 
-    if (user) fetchProfile()
+    if (user) fetchData()
   }, [user])
 
   const handleLogout = async () => {
@@ -29,62 +38,47 @@ export default function DashboardPage() {
     navigate('/')
   }
 
-  // Helper function to delete the commas to make it look nicer
-  const renderSkillBadges = (skillsString, isOffering) => {
-    if (!skillsString || skillsString.trim() === '') {
-      return <p style={{ color: '#64748B', fontSize: '0.9rem', margin: 0, fontStyle: 'italic' }}>No skills listed yet.</p>
-    }
-    
-    return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
-        {skillsString.split(',').map((skill, index) => (
-          <span 
-            key={index} 
-            style={{
-              ...badgeBaseStyle,
-              backgroundColor: isOffering ? '#DBEAFE' : '#FFEDD5',
-              color: isOffering ? '#1E40AF' : '#9A3412'
-            }}
-          >
-            {skill.trim()}
-          </span>
-        ))}
-      </div>
-    )
-  }
+  //i removed the helper functions since we now fetch skills together with the profile, so we can directly split them here without needing to refetch later
+  // also removed the helperfunction to delete commas 
+  // Split skills into offering and learning
+  const offeringSkills = skills.filter(s => s.type === 'offering')
+  const learningSkills = skills.filter(s => s.type === 'learning')
 
   if (loading) {
     return (
       <div style={pageStyle}>
-        <p style={{ textAlign: 'center', marginTop: '20vh', color: '#475569' }}>Loading your dashboard...</p>
+        <p style={{ textAlign: 'center', marginTop: '20vh', color: '#475569' }}>
+          Loading your dashboard...
+        </p>
       </div>
     )
   }
 
   return (
     <div style={pageStyle}>
-      {/* Navigation bar */}
+      {/*  Navigation bar */}
       <nav style={navStyle}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1E3A8A', margin: 0 }}>
           Skill<span style={{ color: '#F97316' }}>Swap</span>
         </h1>
-        
-        {/* Navigation icons */}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          {/* Inbox icon link */}
           <Link to="/inbox" style={iconLinkStyle} title="View Inbox">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-              <polyline points="22,6 12,13 2,6"></polyline>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
             </svg>
             <span style={iconLabelStyle}>Inbox</span>
           </Link>
 
-          {/* Profile icon link */}
           <Link to="/profile" style={iconLinkStyle} title="Edit Profile">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
             </svg>
             <span style={iconLabelStyle}>Profile</span>
           </Link>
@@ -95,6 +89,8 @@ export default function DashboardPage() {
 
       {/* Main content container */}
       <div style={containerStyle}>
+
+        {/* Welcome header */}
         <div style={headerStyle}>
           <h2 style={{ fontSize: '2rem', fontWeight: '600', color: '#0F172A', margin: 0 }}>
             Welcome back, {profile?.name}! 👋
@@ -104,50 +100,138 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Dashboard grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
-          
-          {/* the left card shows the credit balance but yet ot implemeent*/}
+        {/*top row */}
+        <div style={{ display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                      gap: '2rem', marginBottom: '2rem' }}>
+
+          {/* Account balance card, with the yet to be implemented credit */}
           <div style={cardStyle}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1E3A8A', margin: '0 0 1rem 0' }}>Account Balance</h3>
-            <p style={{ color: '#475569', fontSize: '0.95rem', marginBottom: '1.5rem' }}><strong>Registered Email:</strong> {profile?.email}</p>
-            
+            <h3 style={cardTitleStyle}>Account Balance</h3>
+            <p style={infoTextStyle}>
+              <strong>Email:</strong> {profile?.email}
+            </p>
+            <p style={infoTextStyle}>
+              <strong>Program:</strong>{' '}
+              {profile?.course || (
+                <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>
+              )}
+            </p>
+            <p style={infoTextStyle}>
+              <strong>Year:</strong>{' '}
+              {profile?.year_of_study || (
+                <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>
+              )}
+            </p>
+            <p style={infoTextStyle}>
+              <strong>Telegram:</strong>{' '}
+              {profile?.telegram_handle || (
+                <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>
+              )}
+            </p>
+
             <div style={creditBoxStyle}>
-              <p style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#475569', margin: '0 0 0.5rem 0', fontWeight: '500' }}>
+              <p style={{ fontSize: '0.85rem', textTransform: 'uppercase',
+                          letterSpacing: '1px', color: '#475569',
+                          margin: '0 0 0.5rem 0', fontWeight: '500' }}>
                 Available Exchange Credits
               </p>
-              <p style={{ fontSize: '3rem', fontWeight: '700', color: '#F97316', margin: 0, lineHeight: '1' }}>
-                {profile?.credits}
+              <p style={{ fontSize: '3rem', fontWeight: '700',
+                          color: '#F97316', margin: 0, lineHeight: '1' }}>
+                {profile?.credits ?? 0}
               </p>
             </div>
           </div>
 
-          {/* Right card shows portfolio */}
+          {/* Bio Card , new addition*/}
           <div style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1E3A8A', margin: 0 }}>My Skills Portfolio</h3>
-              <Link to="/profile" style={{ color: '#F97316', fontSize: '0.9rem', fontWeight: '600', textDecoration: 'none' }}>Edit Skills →</Link>
-            </div>
-
-            <p style={{ color: '#475569', fontSize: '0.95rem', margin: '0 0 1.5rem 0' }}>
-              <strong>Major / Program:</strong> {profile?.major || <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set yet</span>}
+            <h3 style={cardTitleStyle}>About Me</h3>
+            <p style={{ ...infoTextStyle, lineHeight: 1.7 }}>
+              {profile?.bio || (
+                <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>
+                  No bio added yet.
+                </span>
+              )}
             </p>
+            <Link to="/profile"
+              style={{ color: '#F97316', fontSize: '0.9rem',
+                       fontWeight: '600', textDecoration: 'none',
+                       marginTop: 'auto', paddingTop: '1rem' }}>
+              Edit Profile →
+            </Link>
+          </div>
 
-            {/* Skills offering block */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h4 style={skillTitleStyle}>
-                <span style={{ color: '#1E40AF', marginRight: '0.4rem' }}>●</span> Skills I am Offering
-              </h4>
-              {renderSkillBadges(profile?.offer_skills, true)}
-            </div>
+        </div>
 
-            {/* Skills demanding block */}
-            <div>
-              <h4 style={skillTitleStyle}>
-                <span style={{ color: '#9A3412', marginRight: '0.4rem' }}>●</span> Skills I Want to Learn
-              </h4>
-              {renderSkillBadges(profile?.learn_skills, false)}
-            </div>
+        {/* ── Skills Row ── */}
+        <div style={{ display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                      gap: '2rem' }}>
+
+          {/* Skills Offering block */}
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>
+              <span style={{ color: '#1E40AF', marginRight: '0.4rem' }}>●</span>
+              Skills I am Offering
+              <span style={{ fontSize: '0.8rem', color: '#94A3B8',
+                             fontWeight: 400, marginLeft: '0.5rem' }}>
+                ({offeringSkills.length})
+              </span>
+            </h3>
+
+            {offeringSkills.length === 0 ? (
+              <p style={{ color: '#94A3B8', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                No skills listed yet.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                {offeringSkills.map(skill => (
+                  <span key={skill.id} style={offeringBadgeStyle}>
+                    {skill.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <Link to="/profile"
+              style={{ color: '#F97316', fontSize: '0.85rem',
+                       fontWeight: '600', textDecoration: 'none',
+                       marginTop: '1rem', display: 'inline-block' }}>
+              Edit Skills →
+            </Link>
+          </div>
+
+          {/* Skills demanding block*/}
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>
+              <span style={{ color: '#9A3412', marginRight: '0.4rem' }}>●</span>
+              Skills I Want to Learn
+              <span style={{ fontSize: '0.8rem', color: '#94A3B8',
+                             fontWeight: 400, marginLeft: '0.5rem' }}>
+                ({learningSkills.length})
+              </span>
+            </h3>
+
+            {learningSkills.length === 0 ? (
+              <p style={{ color: '#94A3B8', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                No skills listed yet.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                {learningSkills.map(skill => (
+                  <span key={skill.id} style={learningBadgeStyle}>
+                    {skill.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <Link to="/profile"
+              style={{ color: '#F97316', fontSize: '0.85rem',
+                       fontWeight: '600', textDecoration: 'none',
+                       marginTop: '1rem', display: 'inline-block' }}>
+              Edit Skills →
+            </Link>
           </div>
 
         </div>
@@ -158,11 +242,11 @@ export default function DashboardPage() {
 
 //page styles and shit, following the color scheme we discussed,
 
-const pageStyle = { 
-  minHeight: '100vh', 
-  backgroundColor: '#F0F4F8', 
+const pageStyle = {
+  minHeight: '100vh',
+  backgroundColor: '#F0F4F8',
   fontFamily: "'Poppins', sans-serif",
-  color: '#0F172A' 
+  color: '#0F172A'
 }
 
 const navStyle = {
@@ -185,14 +269,28 @@ const headerStyle = {
   marginBottom: '2.5rem'
 }
 
-const cardStyle = { 
-  backgroundColor: '#FFFFFF', 
-  border: '1px solid #E2E8F0', 
-  borderRadius: '16px', 
-  padding: '2rem', 
-  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+const cardStyle = {
+  backgroundColor: '#FFFFFF',
+  border: '1px solid #E2E8F0',
+  borderRadius: '16px',
+  padding: '2rem',
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
   display: 'flex',
-  flexDirection: 'column'
+  flexDirection: 'column',
+  gap: '0.75rem'
+}
+
+const cardTitleStyle = {
+  fontSize: '1.1rem',
+  fontWeight: '700',
+  color: '#1E3A8A',
+  margin: 0
+}
+
+const infoTextStyle = {
+  color: '#475569',
+  fontSize: '0.95rem',
+  margin: 0
 }
 
 const creditBoxStyle = {
@@ -200,9 +298,7 @@ const creditBoxStyle = {
   border: '1px solid #E2E8F0',
   borderRadius: '12px',
   padding: '1.5rem',
-  alignSelf: 'flex-start',
-  width: '100%',
-  boxSizing: 'border-box'
+  marginTop: '0.5rem'
 }
 
 const iconLinkStyle = {
@@ -213,34 +309,38 @@ const iconLinkStyle = {
   color: '#475569',
   fontSize: '0.75rem',
   fontWeight: '500',
-  transition: 'color 0.2s ease',
 }
 
 const iconLabelStyle = {
   marginTop: '0.25rem',
 }
 
-const skillTitleStyle = {
-  fontSize: '0.95rem',
-  fontWeight: '600',
-  color: '#334155',
-  margin: '0 0 0.5rem 0'
-}
-
-const badgeBaseStyle = {
+const offeringBadgeStyle = {
   padding: '0.35rem 0.75rem',
   borderRadius: '20px',
   fontSize: '0.85rem',
   fontWeight: '500',
+  backgroundColor: '#DBEAFE',
+  color: '#1E40AF',
   display: 'inline-block'
 }
 
-const btnSecondary = { 
-  padding: '0.5rem 1.25rem', 
-  backgroundColor: 'transparent', 
-  border: '1px solid #CBD5E1', 
-  borderRadius: '8px', 
-  color: '#475569', 
+const learningBadgeStyle = {
+  padding: '0.35rem 0.75rem',
+  borderRadius: '20px',
+  fontSize: '0.85rem',
+  fontWeight: '500',
+  backgroundColor: '#FFEDD5',
+  color: '#9A3412',
+  display: 'inline-block'
+}
+
+const btnSecondary = {
+  padding: '0.5rem 1.25rem',
+  backgroundColor: 'transparent',
+  border: '1px solid #CBD5E1',
+  borderRadius: '8px',
+  color: '#475569',
   fontSize: '0.9rem',
   fontWeight: '600',
   cursor: 'pointer',

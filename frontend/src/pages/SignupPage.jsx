@@ -24,9 +24,9 @@ const handleSubmit = async (e) => {
     password: form.password,
     options: {
       data: {
-      display_name: form.name,
-      full_name: form.name,      
-    },
+        display_name: form.name,
+        full_name: form.name,
+      },
     },
   })
 
@@ -41,29 +41,17 @@ const handleSubmit = async (e) => {
     setError('Account may already exist. Please check your email or try logging in.')
     return
   }
-
-  const { error: profileError } = await supabase
+  const { error: nameError } = await supabase
     .from('profiles')
-    .upsert(
-      {
-        id: userId,
-        name: form.name,
-        email: form.email,
-        credits: 0,
-      },
-      {
-        onConflict: 'id',
-      }
-    )
+    .update({ name: form.name })
+    .eq('id', userId)
 
-  if (profileError) {
-    setError(profileError.message)
-    return
+  if (nameError) {
+    console.error('Name update failed:', nameError.message)
   }
 
-  navigate('/dashboard')
+  navigate('/create-profile')
 }
-//use these settings 
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
