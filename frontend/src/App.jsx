@@ -5,6 +5,8 @@ import LoginPage          from './pages/LoginPage'
 import SignupPage         from './pages/SignupPage'
 import ProfileCreatePage  from './pages/ProfileCreatePage'
 import DashboardPage      from './pages/DashboardPage'
+import InboxPage from './pages/InboxPage'
+
 
 function ProtectedRoute({ children }) {
   const { user, profile, loading } = useAuth()
@@ -52,6 +54,11 @@ function AppRoutes() {
           <DashboardPage />
         </ProtectedRoute>
       } />
+      <Route path="/inbox" element={
+  <ProtectedRoute>
+    <InboxPage />
+  </ProtectedRoute>
+} />
     </Routes>
   )
 }
