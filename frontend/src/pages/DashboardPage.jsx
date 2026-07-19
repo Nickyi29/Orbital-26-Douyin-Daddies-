@@ -6,30 +6,20 @@ import { useAuth } from '../context/AuthContext'
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [profile, setProfile]   = useState(null)
-  const [skills, setSkills]     = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [profile, setProfile] = useState(null)
+  const [skills, setSkills]   = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchData = async () => {
-      // edited this section to fetch skills together with profile, to avoid multiple round trips and ensure data consistency on load
       const [profileRes, skillsRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single(),
-        supabase
-          .from('skills')
-          .select('*')
-          .eq('user_id', user.id)
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('skills').select('*').eq('user_id', user.id)
       ])
-
       setProfile(profileRes.data)
       setSkills(skillsRes.data || [])
       setLoading(false)
     }
-
     if (user) fetchData()
   }, [user])
 
@@ -38,9 +28,6 @@ export default function DashboardPage() {
     navigate('/')
   }
 
-  //i removed the helper functions since we now fetch skills together with the profile, so we can directly split them here without needing to refetch later
-  // also removed the helperfunction to delete commas 
-  // Split skills into offering and learning
   const offeringSkills = skills.filter(s => s.type === 'offering')
   const learningSkills = skills.filter(s => s.type === 'learning')
 
@@ -56,13 +43,16 @@ export default function DashboardPage() {
 
   return (
     <div style={pageStyle}>
-      {/*  Navigation bar */}
+
+      {/* Navbar */}
       <nav style={navStyle}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1E3A8A', margin: 0 }}>
           Skill<span style={{ color: '#F97316' }}>Swap</span>
         </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+
+          {/* Inbox */}
           <Link to="/inbox" style={iconLinkStyle} title="View Inbox">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
               viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -73,6 +63,18 @@ export default function DashboardPage() {
             <span style={iconLabelStyle}>Inbox</span>
           </Link>
 
+          {/* Credits */}
+          <Link to="/credits" style={iconLinkStyle} title="View Credits">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 8v4l3 3"/>
+            </svg>
+            <span style={iconLabelStyle}>Credits</span>
+          </Link>
+
+          {/* Profile */}
           <Link to="/profile" style={iconLinkStyle} title="Edit Profile">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
               viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -87,10 +89,9 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      {/* Main content container */}
+      {/* Main content */}
       <div style={containerStyle}>
 
-        {/* Welcome header */}
         <div style={headerStyle}>
           <h2 style={{ fontSize: '2rem', fontWeight: '600', color: '#0F172A', margin: 0 }}>
             Welcome back, {profile?.name}! 👋
@@ -100,34 +101,26 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/*top row */}
+        {/* Top row */}
         <div style={{ display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
                       gap: '2rem', marginBottom: '2rem' }}>
 
-          {/* Account balance card, with the yet to be implemented credit */}
+          {/* Account Balance */}
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Account Balance</h3>
-            <p style={infoTextStyle}>
-              <strong>Email:</strong> {profile?.email}
-            </p>
+            <p style={infoTextStyle}><strong>Email:</strong> {profile?.email}</p>
             <p style={infoTextStyle}>
               <strong>Program:</strong>{' '}
-              {profile?.course || (
-                <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>
-              )}
+              {profile?.course || <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>}
             </p>
             <p style={infoTextStyle}>
               <strong>Year:</strong>{' '}
-              {profile?.year_of_study || (
-                <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>
-              )}
+              {profile?.year_of_study || <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>}
             </p>
             <p style={infoTextStyle}>
               <strong>Telegram:</strong>{' '}
-              {profile?.telegram_handle || (
-                <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>
-              )}
+              {profile?.telegram_handle || <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>Not set</span>}
             </p>
 
             <div style={creditBoxStyle}>
@@ -140,10 +133,22 @@ export default function DashboardPage() {
                           color: '#F97316', margin: 0, lineHeight: '1' }}>
                 {profile?.credits ?? 0}
               </p>
+              <p style={{ fontSize: '0.8rem', color: '#94A3B8',
+                          marginTop: '0.25rem', marginBottom: '0.75rem' }}>
+                credits available
+              </p>
+              <Link to="/credits" style={{
+                fontSize: '0.85rem', color: '#1E3A8A', fontWeight: 600,
+                textDecoration: 'none', display: 'inline-block',
+                padding: '0.4rem 0.85rem', background: '#EFF6FF',
+                borderRadius: '6px', border: '1px solid #BFDBFE'
+              }}>
+                View transaction history →
+              </Link>
             </div>
           </div>
 
-          {/* Bio Card , new addition*/}
+          {/* Bio */}
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>About Me</h3>
             <p style={{ ...infoTextStyle, lineHeight: 1.7 }}>
@@ -154,21 +159,20 @@ export default function DashboardPage() {
               )}
             </p>
             <Link to="/profile"
-              style={{ color: '#F97316', fontSize: '0.9rem',
-                       fontWeight: '600', textDecoration: 'none',
-                       marginTop: 'auto', paddingTop: '1rem' }}>
+              style={{ color: '#F97316', fontSize: '0.9rem', fontWeight: '600',
+                       textDecoration: 'none', marginTop: 'auto', paddingTop: '1rem' }}>
               Edit Profile →
             </Link>
           </div>
 
         </div>
 
-        {/* ── Skills Row ── */}
+        {/* Skills row */}
         <div style={{ display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
                       gap: '2rem' }}>
 
-          {/* Skills Offering block */}
+          {/* Offering */}
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>
               <span style={{ color: '#1E40AF', marginRight: '0.4rem' }}>●</span>
@@ -178,7 +182,6 @@ export default function DashboardPage() {
                 ({offeringSkills.length})
               </span>
             </h3>
-
             {offeringSkills.length === 0 ? (
               <p style={{ color: '#94A3B8', fontSize: '0.9rem', fontStyle: 'italic' }}>
                 No skills listed yet.
@@ -186,22 +189,18 @@ export default function DashboardPage() {
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
                 {offeringSkills.map(skill => (
-                  <span key={skill.id} style={offeringBadgeStyle}>
-                    {skill.name}
-                  </span>
+                  <span key={skill.id} style={offeringBadgeStyle}>{skill.name}</span>
                 ))}
               </div>
             )}
-
             <Link to="/profile"
-              style={{ color: '#F97316', fontSize: '0.85rem',
-                       fontWeight: '600', textDecoration: 'none',
-                       marginTop: '1rem', display: 'inline-block' }}>
+              style={{ color: '#F97316', fontSize: '0.85rem', fontWeight: '600',
+                       textDecoration: 'none', marginTop: '1rem', display: 'inline-block' }}>
               Edit Skills →
             </Link>
           </div>
 
-          {/* Skills demanding block*/}
+          {/* Learning */}
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>
               <span style={{ color: '#9A3412', marginRight: '0.4rem' }}>●</span>
@@ -211,7 +210,6 @@ export default function DashboardPage() {
                 ({learningSkills.length})
               </span>
             </h3>
-
             {learningSkills.length === 0 ? (
               <p style={{ color: '#94A3B8', fontSize: '0.9rem', fontStyle: 'italic' }}>
                 No skills listed yet.
@@ -219,17 +217,13 @@ export default function DashboardPage() {
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
                 {learningSkills.map(skill => (
-                  <span key={skill.id} style={learningBadgeStyle}>
-                    {skill.name}
-                  </span>
+                  <span key={skill.id} style={learningBadgeStyle}>{skill.name}</span>
                 ))}
               </div>
             )}
-
             <Link to="/profile"
-              style={{ color: '#F97316', fontSize: '0.85rem',
-                       fontWeight: '600', textDecoration: 'none',
-                       marginTop: '1rem', display: 'inline-block' }}>
+              style={{ color: '#F97316', fontSize: '0.85rem', fontWeight: '600',
+                       textDecoration: 'none', marginTop: '1rem', display: 'inline-block' }}>
               Edit Skills →
             </Link>
           </div>
@@ -240,109 +234,45 @@ export default function DashboardPage() {
   )
 }
 
-//page styles and shit, following the color scheme we discussed,
-
 const pageStyle = {
-  minHeight: '100vh',
-  backgroundColor: '#F0F4F8',
-  fontFamily: "'Poppins', sans-serif",
-  color: '#0F172A'
+  minHeight: '100vh', backgroundColor: '#F0F4F8',
+  fontFamily: "'Poppins', sans-serif", color: '#0F172A'
 }
-
 const navStyle = {
-  backgroundColor: '#FFFFFF',
-  padding: '1rem 5%',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  borderBottom: '1px solid #E2E8F0',
-  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
+  backgroundColor: '#FFFFFF', padding: '1rem 5%',
+  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)'
 }
-
-const containerStyle = {
-  maxWidth: '1200px',
-  margin: '0 auto',
-  padding: '3rem 5%'
-}
-
-const headerStyle = {
-  marginBottom: '2.5rem'
-}
-
+const containerStyle = { maxWidth: '1200px', margin: '0 auto', padding: '3rem 5%' }
+const headerStyle    = { marginBottom: '2.5rem' }
 const cardStyle = {
-  backgroundColor: '#FFFFFF',
-  border: '1px solid #E2E8F0',
-  borderRadius: '16px',
-  padding: '2rem',
-  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '0.75rem'
+  backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0',
+  borderRadius: '16px', padding: '2rem',
+  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+  display: 'flex', flexDirection: 'column', gap: '0.75rem'
 }
-
-const cardTitleStyle = {
-  fontSize: '1.1rem',
-  fontWeight: '700',
-  color: '#1E3A8A',
-  margin: 0
+const cardTitleStyle  = { fontSize: '1.1rem', fontWeight: '700', color: '#1E3A8A', margin: 0 }
+const infoTextStyle   = { color: '#475569', fontSize: '0.95rem', margin: 0 }
+const creditBoxStyle  = {
+  backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0',
+  borderRadius: '12px', padding: '1.5rem', marginTop: '0.5rem'
 }
-
-const infoTextStyle = {
-  color: '#475569',
-  fontSize: '0.95rem',
-  margin: 0
-}
-
-const creditBoxStyle = {
-  backgroundColor: '#F8FAFC',
-  border: '1px solid #E2E8F0',
-  borderRadius: '12px',
-  padding: '1.5rem',
-  marginTop: '0.5rem'
-}
-
 const iconLinkStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  textDecoration: 'none',
-  color: '#475569',
-  fontSize: '0.75rem',
-  fontWeight: '500',
+  display: 'flex', flexDirection: 'column', alignItems: 'center',
+  textDecoration: 'none', color: '#475569', fontSize: '0.75rem', fontWeight: '500',
 }
-
-const iconLabelStyle = {
-  marginTop: '0.25rem',
-}
-
+const iconLabelStyle  = { marginTop: '0.25rem' }
 const offeringBadgeStyle = {
-  padding: '0.35rem 0.75rem',
-  borderRadius: '20px',
-  fontSize: '0.85rem',
-  fontWeight: '500',
-  backgroundColor: '#DBEAFE',
-  color: '#1E40AF',
-  display: 'inline-block'
+  padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.85rem',
+  fontWeight: '500', backgroundColor: '#DBEAFE', color: '#1E40AF', display: 'inline-block'
 }
-
 const learningBadgeStyle = {
-  padding: '0.35rem 0.75rem',
-  borderRadius: '20px',
-  fontSize: '0.85rem',
-  fontWeight: '500',
-  backgroundColor: '#FFEDD5',
-  color: '#9A3412',
-  display: 'inline-block'
+  padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.85rem',
+  fontWeight: '500', backgroundColor: '#FFEDD5', color: '#9A3412', display: 'inline-block'
 }
-
 const btnSecondary = {
-  padding: '0.5rem 1.25rem',
-  backgroundColor: 'transparent',
-  border: '1px solid #CBD5E1',
-  borderRadius: '8px',
-  color: '#475569',
-  fontSize: '0.9rem',
-  fontWeight: '600',
-  cursor: 'pointer',
+  padding: '0.5rem 1.25rem', backgroundColor: 'transparent',
+  border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569',
+  fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer',
   fontFamily: "'Poppins', sans-serif"
 }
