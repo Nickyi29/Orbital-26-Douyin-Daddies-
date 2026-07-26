@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { COURSES, SKILLS, YEARS } from '../lib/data'
+import AvailabilityGrid from '../components/AvailabilityGrid'
 
 export default function ProfileCreatePage() {
   const { user, fetchProfile } = useAuth()
@@ -19,8 +20,48 @@ export default function ProfileCreatePage() {
 
   const [selectedOffering, setSelectedOffering] = useState([])
   const [selectedLearning, setSelectedLearning] = useState([])
+  const [availabilitySlots, setAvailabilitySlots] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
+
+
+  useEffect(() => {
+    const loadExistingProfile = async () => {
+      if (!user) return
+      
+      const [profileRes, skillsRes, availRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('skills').select('*').eq('user_id', user.id),
+        supabase.from('availability').select('slots').eq('user_id', user.id).maybeSingle()
+      ])
+
+      
+      if (profileRes.data && profileRes.data.profile_complete) {
+        setForm({
+          telegram_handle: profileRes.data.telegram_handle || '',
+          course:          profileRes.data.course || '',
+          year_of_study:   profileRes.data.year_of_study || '',
+          bio:             profileRes.data.bio || '',
+        })
+      }
+
+      
+      if (skillsRes.data) {
+        setSelectedOffering(skillsRes.data.filter(s => s.type === 'offering').map(s => s.name))
+        setSelectedLearning(skillsRes.data.filter(s => s.type === 'learning').map(s => s.name))
+      }
+
+      
+      if (availRes.data && availRes.data.slots) {
+        setAvailabilitySlots(availRes.data.slots)
+      }
+      
+      setFetching(false)
+    }
+    
+    loadExistingProfile()
+  }, [user])
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -48,70 +89,90 @@ export default function ProfileCreatePage() {
     setStep(2)
   }
 
-const handleSubmit = async () => {
-  if (selectedOffering.length === 0) {
-    setError('Please add at least one skill you can teach')
-    return
+  const handleSubmit = async () => {
+    if (selectedOffering.length === 0) {
+      setError('Please add at least one skill you can teach')
+      return
+    }
+    if (selectedLearning.length === 0) {
+      setError('Please add at least one skill you want to learn')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    // Save/Upsert Availability
+    const { error: availError } = await supabase
+      .from('availability')
+      .upsert({
+        user_id: user.id,
+        slots: availabilitySlots,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' })
+
+    if (availError) {
+      console.error('Availability save error:', availError.message)
+    }
+
+    // Save Profile Information
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        telegram_handle:  form.telegram_handle,
+        course:           form.course,
+        year_of_study:    form.year_of_study,
+        bio:              form.bio,
+        profile_complete: true,
+      })
+      .eq('id', user.id)
+
+    if (profileError) {
+      setError('Failed to save profile: ' + profileError.message)
+      setLoading(false)
+      return
+    }
+
+    await supabase.from('skills').delete().eq('user_id', user.id)
+
+    const offeringRows = selectedOffering.map(name => ({
+      user_id:  user.id,
+      name,
+      category: SKILLS.find(s => s.name === name)?.category || 'Other',
+      type:     'offering',
+    }))
+
+    const learningRows = selectedLearning.map(name => ({
+      user_id:  user.id,
+      name,
+      category: SKILLS.find(s => s.name === name)?.category || 'Other',
+      type:     'learning',
+    }))
+
+    const { error: skillsError } = await supabase
+      .from('skills')
+      .insert([...offeringRows, ...learningRows])
+
+    if (skillsError) {
+      setError('Failed to save skills: ' + skillsError.message)
+      setLoading(false)
+      return
+    }
+
+    await fetchProfile(user.id)
+
+    setTimeout(() => {
+      navigate('/dashboard')
+    }, 100)
   }
-  if (selectedLearning.length === 0) {
-    setError('Please add at least one skill you want to learn')
-    return
-  }
-
-  setLoading(true)
-  setError('')
-
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({
-      telegram_handle:  form.telegram_handle,
-      course:           form.course,
-      year_of_study:    form.year_of_study,
-      bio:              form.bio,
-      profile_complete: true,
-    })
-    .eq('id', user.id)
-
-  if (profileError) {
-    setError('Failed to save profile: ' + profileError.message)
-    setLoading(false)
-    return
-  }
-
-  await supabase.from('skills').delete().eq('user_id', user.id)
-
-  const offeringRows = selectedOffering.map(name => ({
-    user_id:  user.id,
-    name,
-    category: SKILLS.find(s => s.name === name)?.category || 'Other',
-    type:     'offering',
-  }))
-
-  const learningRows = selectedLearning.map(name => ({
-    user_id:  user.id,
-    name,
-    category: SKILLS.find(s => s.name === name)?.category || 'Other',
-    type:     'learning',
-  }))
-
-  const { error: skillsError } = await supabase
-    .from('skills')
-    .insert([...offeringRows, ...learningRows])
-
-  if (skillsError) {
-    setError('Failed to save skills: ' + skillsError.message)
-    setLoading(false)
-    return
-  }
-
-  await fetchProfile(user.id)
-
-  setTimeout(() => {
-    navigate('/dashboard')
-  }, 100)
-}
 
   const categories = [...new Set(SKILLS.map(s => s.category))]
+
+  if (fetching) return (
+    <div style={pageStyle}>
+      <p style={{ color: '#64748B' }}>Loading your profile data...</p>
+    </div>
+  )
 
   return (
     <div style={pageStyle}>
@@ -123,7 +184,7 @@ const handleSubmit = async () => {
             Set up your profile
           </h2>
           <p style={{ color: '#64748B', fontSize: '0.9rem' }}>
-            Step {step} of 2 — {step === 1 ? 'Basic Info' : 'Your Skills'}
+            Step {step} of 2 — {step === 1 ? 'Basic Info & Availability' : 'Your Skills'}
           </p>
           <div style={{ marginTop: '1rem', background: '#E5E7EB',
                         borderRadius: '99px', height: '4px', overflow: 'hidden' }}>
@@ -161,6 +222,13 @@ const handleSubmit = async () => {
               <textarea name="bio" value={form.bio} onChange={handleChange}
                 placeholder="Tell others a little about yourself..."
                 rows={3} style={{ ...inputStyle, resize: 'none' }} />
+            </Field>
+
+            <Field label="Availability">
+              <AvailabilityGrid
+                slots={availabilitySlots}
+                onChange={setAvailabilitySlots}
+              />
             </Field>
 
             {error && <p style={errorStyle}>{error}</p>}

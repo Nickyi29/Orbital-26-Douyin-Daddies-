@@ -1,63 +1,56 @@
 export function calculateMatchScore(
-  myProfile, mySkills,
-  candidate, candidateSkills
+  myProfile,
+  mySkills,
+  myAvailability,
+  candidateProfile,
+  candidateSkills,
+  candidateAvailability
 ) {
-  const myWants      = mySkills
-    .filter(s => s.type === 'learning').map(s => s.name)
-  const myOffers     = mySkills
-    .filter(s => s.type === 'offering').map(s => s.name)
-  const theirOffers  = candidateSkills
-    .filter(s => s.type === 'offering').map(s => s.name)
-  const theirWants   = candidateSkills
-    .filter(s => s.type === 'learning').map(s => s.name)
 
-  const theyCanTeachMe = myWants
-    .filter(s => theirOffers.includes(s))
+  const myOffering = mySkills.filter(s => s.type === 'offering').map(s => s.name)
+  const myLearning = mySkills.filter(s => s.type === 'learning').map(s => s.name)
+  
+  const candidateOffering = candidateSkills.filter(s => s.type === 'offering').map(s => s.name)
+  const candidateLearning = candidateSkills.filter(s => s.type === 'learning').map(s => s.name)
 
-  const iCanTeachThem = myOffers
-    .filter(s => theirWants.includes(s))
+  const theyCanTeachMe = candidateOffering.filter(s => myLearning.includes(s))
+  const iCanTeachThem = myOffering.filter(s => candidateLearning.includes(s))
 
-  if (theyCanTeachMe.length === 0 && iCanTeachThem.length === 0) {
-    return null   
+  const directMatchCount = theyCanTeachMe.length + iCanTeachThem.length
+  const skillScore = Math.min(directMatchCount * 25, 50)
+
+
+  const myCategories = new Set(mySkills.map(s => s.category))
+  const candidateCategories = new Set(candidateSkills.map(s => s.category))
+  const commonCategories = [...myCategories].filter(c => candidateCategories.has(c))
+  const categoryScore = Math.min(commonCategories.length * 5, 10)
+
+  const rating = candidateProfile.rating ?? 5.0
+  const ratingScore = (rating / 5.0) * 10
+
+  const mySlots = myAvailability?.slots || []
+  const candidateSlots = candidateAvailability?.slots || []
+  
+  let availScore = 15 
+  if (mySlots.length > 0 && candidateSlots.length > 0) {
+    const overlap = mySlots.filter(s => candidateSlots.includes(s)).length
+    availScore = Math.round((overlap / Math.max(mySlots.length, 1)) * 30)
   }
 
-  const totalMatches = theyCanTeachMe.length + iCanTeachThem.length
-  const maxPossible  = myWants.length + myOffers.length
-  const skillScore   = maxPossible > 0
-    ? (totalMatches / maxPossible) * 50 : 0
-
-  const myWantCategories     = mySkills
-    .filter(s => s.type === 'learning').map(s => s.category)
-  const theirOfferCategories = candidateSkills
-    .filter(s => s.type === 'offering').map(s => s.category)
-  const categoryOverlap      = myWantCategories
-    .filter(c => theirOfferCategories.includes(c)).length
-  const categoryScore        = myWantCategories.length > 0
-    ? (categoryOverlap / myWantCategories.length) * 20 : 0
-
-  const rating      = candidate.rating ?? 3.0
-  const ratingScore = (rating / 5) * 20
-
-  let completenessScore = 0
-  if (candidate.bio)              completenessScore += 4
-  if (candidate.telegram_handle)  completenessScore += 3
-  if (candidate.course)           completenessScore += 3
-
-  const total = Math.round(
-    skillScore + categoryScore + ratingScore + completenessScore
-  )
+  const totalRaw = skillScore + categoryScore + ratingScore + availScore
+  const total = Math.min(Math.round(totalRaw), 100)
 
   return {
     total,
     breakdown: {
-      skill:        Math.round(skillScore),
-      category:     Math.round(categoryScore),
-      rating:       Math.round(ratingScore),
-      completeness: Math.round(completenessScore),
+      skill: skillScore,
+      category: categoryScore,
+      rating: Math.round(ratingScore),
+      availability: Math.round(availScore)
     },
     matchedSkills: {
       theyCanTeachMe,
-      iCanTeachThem,
+      iCanTeachThem
     }
   }
 }

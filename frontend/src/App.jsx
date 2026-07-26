@@ -1,12 +1,15 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import LandingPage       from './pages/LandingPage'
-import LoginPage         from './pages/LoginPage'
-import SignupPage        from './pages/SignupPage'
+
+import LandingPage from './pages/LandingPage'
+import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
 import ProfileCreatePage from './pages/ProfileCreatePage'
-import DashboardPage     from './pages/DashboardPage'
-import InboxPage         from './pages/InboxPage'
-import CreditsPage       from './pages/CreditsPage'
+import DashboardPage from './pages/DashboardPage'
+import InboxPage from './pages/InboxPage'
+import CreditsPage from './pages/CreditsPage'
+import ReviewPage from './pages/ReviewPage'
+
 
 function ProtectedRoute({ children }) {
   const { user, profile, loading } = useAuth()
@@ -29,48 +32,55 @@ function ProfileRoute({ children }) {
   return children
 }
 
-function AppRoutes() {
-  return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-
-      <Route path="/create-profile" element={
-        <ProfileRoute>
-          <ProfileCreatePage />
-        </ProfileRoute>
-      } />
-
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <DashboardPage />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/inbox" element={
-        <ProtectedRoute>
-          <InboxPage />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/credits" element={
-        <ProtectedRoute>
-          <CreditsPage />
-        </ProtectedRoute>
-      } />
-
-    </Routes>
-  )
-}
-
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <AuthProvider>
-        <AppRoutes />
+        <Routes>
+       
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+
+  
+          <Route path="/create-profile" element={
+            <ProfileRoute>
+              <ProfileCreatePage />
+            </ProfileRoute>
+          } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfileCreatePage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/inbox" element={
+            <ProtectedRoute>
+              <InboxPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/credits" element={
+            <ProtectedRoute>
+              <CreditsPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/review/:sessionId" element={
+            <ProtectedRoute>
+              <ReviewPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
       </AuthProvider>
-    </BrowserRouter>
+    </Router>
   )
 }
 

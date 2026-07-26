@@ -42,13 +42,16 @@ export default function InboxPage() {
   }
 
   const loadDiscoverMatches = async () => {
-    const [mySkillsRes, myProfileRes] = await Promise.all([
+
+    const [mySkillsRes, myProfileRes, myAvailabilityRes] = await Promise.all([
       supabase.from('skills').select('*').eq('user_id', user.id),
       supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('availability').select('*').eq('user_id', user.id).single()
     ])
 
-    const mySkills  = mySkillsRes.data  || []
+    const mySkills = mySkillsRes.data || []
     const myProfile = myProfileRes.data
+    const myAvailability = myAvailabilityRes.data || { slots: [] }
 
     const { data: existingMatches } = await supabase
       .from('matches')
@@ -71,24 +74,29 @@ export default function InboxPage() {
 
     const candidateProfiles = allProfiles
       .filter(p => !alreadyMatchedIds.includes(p.id))
-      .filter(p => !p.is_flagged)                        // ← Step 3: exclude flagged users
+      .filter(p => !p.is_flagged) 
 
     if (candidateProfiles.length === 0) return
 
     const candidateIds = candidateProfiles.map(p => p.id)
-    const { data: allSkills } = await supabase
-      .from('skills')
-      .select('*')
-      .in('user_id', candidateIds)
+    
+
+    const [allSkillsRes, allAvailabilityRes] = await Promise.all([
+      supabase.from('skills').select('*').in('user_id', candidateIds),
+      supabase.from('availability').select('*').in('user_id', candidateIds)
+    ])
+
+    const allSkills = allSkillsRes.data || []
+    const allAvailabilities = allAvailabilityRes.data || []
 
     const scored = candidateProfiles
       .map(candidate => {
-        const candidateSkills = (allSkills || [])
-          .filter(s => s.user_id === candidate.id)
+        const candidateSkills = allSkills.filter(s => s.user_id === candidate.id)
+        const candidateAvail = allAvailabilities.find(a => a.user_id === candidate.id) || { slots: [] }
 
         const result = calculateMatchScore(
-          myProfile, mySkills,
-          candidate, candidateSkills
+          myProfile, mySkills, myAvailability,
+          candidate, candidateSkills, candidateAvail
         )
 
         if (!result || result.total < 15) return null
@@ -141,14 +149,27 @@ export default function InboxPage() {
 
     if (!data) return
 
-    const enriched = data.map(match => {
+    const baseEnriched = data.map(match => {
       const otherProfile = match.sender_id === user.id
         ? match.receiver
         : match.sender
       return { matchId: match.id, score: match.score, profile: otherProfile }
     })
 
-    setConnected(enriched)
+  
+    const { data: myAvailData } = await supabase.from('availability').select('slots').eq('user_id', user.id).single()
+    const mySlots = myAvailData?.slots || []
+
+    const connectedIds = baseEnriched.map(e => e.profile.id)
+    const { data: connectedAvailData } = await supabase.from('availability').select('*').in('user_id', connectedIds)
+
+    const finalConnected = baseEnriched.map(conn => {
+      const theirSlots = connectedAvailData?.find(a => a.user_id === conn.profile.id)?.slots || []
+      const commonSlots = mySlots.filter(slot => theirSlots.includes(slot))
+      return { ...conn, commonSlots }
+    })
+
+    setConnected(finalConnected)
   }
 
   const handleConnect = async (candidateId, score) => {
@@ -198,7 +219,7 @@ export default function InboxPage() {
           Inbox
         </h1>
 
-        {/* Tabs */}
+  
         <div style={tabBarStyle}>
           <button onClick={() => setTab('discover')}
             style={tab === 'discover' ? activeTabStyle : tabStyle}>
@@ -221,7 +242,7 @@ export default function InboxPage() {
           </button>
         </div>
 
-        {/* Discover tab */}
+    
         {tab === 'discover' && (
           <div>
             <div style={filterRowStyle}>
@@ -263,7 +284,7 @@ export default function InboxPage() {
           </div>
         )}
 
-        {/* Requests tab */}
+    
         {tab === 'requests' && (
           <div>
             {requests.length === 0 ? (
@@ -298,7 +319,7 @@ export default function InboxPage() {
           </div>
         )}
 
-        {/* Connected tab */}
+        {/* connect tab*/}
         {tab === 'connected' && (
           <div>
             {connected.length === 0 ? (
@@ -316,6 +337,7 @@ export default function InboxPage() {
                     skills={[]}
                     showTelegram={true}
                     showReport={true}
+                    commonSlots={conn.commonSlots}
                     actions={
                       <RequestSessionButton
                         teacherId={conn.profile.id}
@@ -337,18 +359,23 @@ export default function InboxPage() {
 
 function MatchCard({
   profile, score, breakdown, matchedSkills,
-  skills, showTelegram, showReport, actions
+  skills, showTelegram, showReport, commonSlots, actions
 }) {
   const offeringSkills = skills?.filter(s => s.type === 'offering') || []
   const scoreColor     = score >= 70 ? '#16a34a' : score >= 40 ? '#F97316' : '#94A3B8'
+  const rating         = profile?.rating || 0
 
-  // Report modal state — lives inside the card
   const [showReportModal, setShowReportModal] = useState(false)
+
+  const formatSlot = (slot) => {
+    const [day, time] = slot.split('_')
+    return `${day.charAt(0).toUpperCase() + day.slice(1)} ${time.charAt(0).toUpperCase() + time.slice(1)}`
+  }
 
   return (
     <div style={cardStyle}>
 
-      {/* Name + score */}
+      
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1E3A8A', margin: 0 }}>
@@ -357,6 +384,13 @@ function MatchCard({
           <p style={{ color: '#64748B', fontSize: '0.82rem', marginTop: '0.2rem' }}>
             {profile?.course} · {profile?.year_of_study}
           </p>
+     
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
+            <span style={{ color: '#F97316', fontSize: '0.9rem' }}>★</span>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569' }}>
+              {rating > 0 ? `${rating.toFixed(1)} / 5.0` : 'New User'}
+            </span>
+          </div>
         </div>
         {score && (
           <div style={{ textAlign: 'center' }}>
@@ -371,14 +405,14 @@ function MatchCard({
         )}
       </div>
 
-      {/* Bio */}
+      {/* bio */}
       {profile?.bio && (
         <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: 1.5, margin: 0 }}>
           {profile.bio.length > 100 ? profile.bio.slice(0, 100) + '...' : profile.bio}
         </p>
       )}
 
-      {/* Matched skills */}
+
       {matchedSkills?.theyCanTeachMe?.length > 0 && (
         <div>
           <p style={skillLabelStyle}>Can teach you</p>
@@ -412,33 +446,47 @@ function MatchCard({
         </div>
       )}
 
-      {/* Telegram — only in Connected tab */}
-      {showTelegram && profile?.telegram_handle && (
-        <div style={telegramStyle}>
-          <span style={{ fontSize: '0.85rem', color: '#1E3A8A', fontWeight: 600 }}>
-            📱 Telegram:
-          </span>
-          <span style={{ fontSize: '0.85rem', color: '#F97316',
-                         fontWeight: 700, marginLeft: '0.4rem' }}>
-            {profile.telegram_handle}
-          </span>
+
+      {(showTelegram || (commonSlots && commonSlots.length > 0)) && (
+        <div style={connectionInfoBoxStyle}>
+          {/* Common Slots */}
+          {commonSlots && commonSlots.length > 0 && (
+            <div style={{ marginBottom: showTelegram ? '0.5rem' : '0' }}>
+              <span style={{ fontSize: '0.85rem', color: '#1E3A8A', fontWeight: 600 }}>
+                🕒 Available to meet:
+              </span>
+              <p style={{ fontSize: '0.8rem', color: '#475569', margin: '0.2rem 0 0 0', lineHeight: 1.4 }}>
+                {commonSlots.map(formatSlot).join(', ')}
+              </p>
+            </div>
+          )}
+
+          {showTelegram && profile?.telegram_handle && (
+            <div style={{ marginTop: commonSlots?.length > 0 ? '0.5rem' : '0', paddingTop: commonSlots?.length > 0 ? '0.5rem' : '0', borderTop: commonSlots?.length > 0 ? '1px dashed #BAE6FD' : 'none' }}>
+              <span style={{ fontSize: '0.85rem', color: '#1E3A8A', fontWeight: 600 }}>
+                📱 Telegram:
+              </span>
+              <span style={{ fontSize: '0.85rem', color: '#F97316', fontWeight: 700, marginLeft: '0.4rem' }}>
+                {profile.telegram_handle}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Score breakdown */}
+
       {breakdown && (
         <div style={breakdownStyle}>
           <span>Skill {breakdown.skill}/50</span>
-          <span>Category {breakdown.category}/20</span>
-          <span>Rating {breakdown.rating}/20</span>
-          <span>Profile {breakdown.completeness}/10</span>
+          <span>Category {breakdown.category}/10</span>
+          <span>Rating {breakdown.rating}/10</span>
+          <span>Avail {breakdown.availability}/30</span>
         </div>
       )}
 
-      {/* Action buttons */}
+
       {actions && <div style={{ marginTop: 'auto' }}>{actions}</div>}
 
-      {/* Report button — small, at the very bottom */}
       {showReport && (
         <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.6rem', marginTop: '0.25rem' }}>
           <button
@@ -449,7 +497,7 @@ function MatchCard({
         </div>
       )}
 
-      {/* Report modal */}
+
       {showReportModal && (
         <ReportModal
           reportedId={profile?.id}
@@ -570,22 +618,11 @@ function EmptyState({ message, sub }) {
   )
 }
 
-//  Styles 
-const pageStyle = {
-  minHeight: '100vh', backgroundColor: '#F0F4F8', fontFamily: "'Poppins', sans-serif",
-}
+// Styles
+const pageStyle = { minHeight: '100vh', backgroundColor: '#F0F4F8', fontFamily: "'Poppins', sans-serif" }
 const containerStyle = { maxWidth: '1100px', margin: '0 auto', padding: '2.5rem 5%' }
-const tabBarStyle = {
-  display: 'flex', gap: '0.5rem', marginBottom: '1.5rem',
-  borderBottom: '2px solid #E2E8F0', paddingBottom: '0',
-}
-const tabStyle = {
-  padding: '0.6rem 1.25rem', background: 'transparent', border: 'none',
-  borderBottom: '2px solid transparent', marginBottom: '-2px',
-  color: '#64748B', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer',
-  display: 'flex', alignItems: 'center', gap: '0.5rem',
-  fontFamily: "'Poppins', sans-serif",
-}
+const tabBarStyle = { display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '2px solid #E2E8F0', paddingBottom: '0' }
+const tabStyle = { padding: '0.6rem 1.25rem', background: 'transparent', border: 'none', borderBottom: '2px solid transparent', marginBottom: '-2px', color: '#64748B', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: "'Poppins', sans-serif" }
 const activeTabStyle  = { ...tabStyle, color: '#1E3A8A', borderBottom: '2px solid #F97316', fontWeight: 700 }
 const countBadge      = { background: '#E2E8F0', color: '#475569', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 700, padding: '0.1rem 0.5rem' }
 const filterRowStyle  = { display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }
@@ -597,7 +634,7 @@ const skillLabelStyle = { fontSize: '0.72rem', color: '#94A3B8', textTransform: 
 const badgeRowStyle   = { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }
 const offerBadgeStyle = { padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.78rem', fontWeight: 500, backgroundColor: '#DBEAFE', color: '#1E40AF' }
 const learnBadgeStyle = { padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.78rem', fontWeight: 500, backgroundColor: '#FFEDD5', color: '#9A3412' }
-const telegramStyle   = { backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '8px', padding: '0.65rem 0.85rem' }
+const connectionInfoBoxStyle = { backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '8px', padding: '0.85rem' }
 const breakdownStyle  = { display: 'flex', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.72rem', color: '#94A3B8', borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }
 const connectBtnStyle = { width: '100%', padding: '0.7rem', background: '#F97316', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }
 const acceptBtnStyle  = { flex: 1, padding: '0.7rem', background: '#1E3A8A', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }
