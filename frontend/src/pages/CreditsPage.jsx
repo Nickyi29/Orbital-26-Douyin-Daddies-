@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 export default function CreditsPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [profile,      setProfile]      = useState(null)
   const [transactions, setTransactions] = useState([])
   const [sessions,     setSessions]     = useState([])
   const [loading,      setLoading]      = useState(true)
+  const [completing,   setCompleting]   = useState(null) // tracks which session is being completed
 
   useEffect(() => {
     if (user) fetchAll()
@@ -27,6 +29,52 @@ export default function CreditsPage() {
     setTransactions(txRes.data || [])
     setSessions(sessionRes.data || [])
     setLoading(false)
+  }
+
+  const handleMarkComplete = async (session) => {
+    setCompleting(session.id)
+
+    const { error: sessionError } = await supabase
+      .from('sessions')
+      .update({ status: 'completed' })
+      .eq('id', session.id)
+
+    if (sessionError) {
+      console.error('Failed to complete session:', sessionError.message)
+      setCompleting(null)
+      return
+    }
+
+    await supabase.rpc('decrement_credits', {
+      uid:    session.learner_id,
+      amount: session.credits_used,
+    })
+
+    await supabase.rpc('increment_credits', {
+      uid:    session.teacher_id,
+      amount: session.credits_used,
+    })
+
+    await supabase.from('credit_transactions').insert([
+      {
+        user_id:     session.learner_id,
+        amount:      -session.credits_used,
+        type:        'spent',
+        session_id:  session.id,
+        description: `Learned ${session.skill_name}`,
+      },
+      {
+        user_id:     session.teacher_id,
+        amount:      session.credits_used,
+        type:        'earned',
+        session_id:  session.id,
+        description: `Taught ${session.skill_name}`,
+      },
+    ])
+
+    setCompleting(null)
+
+    navigate(`/review/${session.id}`)
   }
 
   if (loading) return (
@@ -60,7 +108,6 @@ export default function CreditsPage() {
           Earn credits by teaching sessions. Spend them to learn from others.
         </p>
 
-        {/* Balance card */}
         <div style={{ ...cardStyle, marginBottom: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between',
                         alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -96,12 +143,10 @@ export default function CreditsPage() {
           </div>
         </div>
 
-        {/* Two columns */}
         <div style={{ display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
                       gap: '2rem' }}>
 
-          {/* Transaction history */}
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Transaction History</h3>
             {transactions.length === 0 ? (
@@ -122,7 +167,8 @@ export default function CreditsPage() {
                     borderRadius: '8px', border: '1px solid #E2E8F0'
                   }}>
                     <div>
-                      <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#0F172A', margin: 0 }}>
+                      <p style={{ fontSize: '0.88rem', fontWeight: 600,
+                                  color: '#0F172A', margin: 0 }}>
                         {tx.description}
                       </p>
                       <p style={{ fontSize: '0.75rem', color: '#94A3B8', margin: '0.2rem 0 0' }}>
@@ -144,7 +190,6 @@ export default function CreditsPage() {
             )}
           </div>
 
-          {/* Session history */}
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Session History</h3>
             {sessions.length === 0 ? (
@@ -171,23 +216,72 @@ export default function CreditsPage() {
                       padding: '0.85rem', background: '#F8FAFC',
                       borderRadius: '8px', border: '1px solid #E2E8F0'
                     }}>
+
                       <div style={{ display: 'flex', justifyContent: 'space-between',
                                     alignItems: 'center', marginBottom: '0.35rem' }}>
-                        <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                        <p style={{ fontSize: '0.9rem', fontWeight: 700,
+                                    color: '#0F172A', margin: 0 }}>
                           {session.skill_name}
                         </p>
                         <span style={{
                           fontSize: '0.7rem', fontWeight: 700,
                           padding: '0.2rem 0.6rem', borderRadius: '99px',
-                          background: sc.bg, color: sc.text, textTransform: 'capitalize'
+                          background: sc.bg, color: sc.text,
+                          textTransform: 'capitalize'
                         }}>
                           {session.status}
                         </span>
                       </div>
+
                       <p style={{ fontSize: '0.8rem', color: '#64748B', margin: 0 }}>
                         {isTeacher ? '🎓 You taught' : '📚 You learned'}
                         {' · '}{session.credits_used} credits
                       </p>
+
+                      {session.status === 'pending' && isTeacher && (
+                        <button
+                          onClick={() => handleMarkComplete(session)}
+                          disabled={completing === session.id}
+                          style={{
+                            marginTop: '0.65rem',
+                            width: '100%',
+                            padding: '0.5rem',
+                            background: completing === session.id
+                              ? '#94A3B8' : '#1E3A8A',
+                            border: 'none',
+                            borderRadius: '6px',
+                            color: 'white',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            cursor: completing === session.id
+                              ? 'not-allowed' : 'pointer',
+                            fontFamily: 'inherit',
+                          }}>
+                          {completing === session.id
+                            ? 'Completing...'
+                            : '✓ Mark as Complete'}
+                        </button>
+                      )}
+                      {session.status === 'completed' && (
+                        <Link
+                          to={`/review/${session.id}`}
+                          style={{
+                            display: 'block',
+                            marginTop: '0.65rem',
+                            padding: '0.5rem',
+                            background: '#FFF7ED',
+                            border: '1px solid #FDBA74',
+                            borderRadius: '6px',
+                            color: '#EA580C',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            textAlign: 'center',
+                            textDecoration: 'none',
+                          }}>
+                          ★ Leave a Review
+                        </Link>
+                      )}
+
                     </div>
                   )
                 })}
