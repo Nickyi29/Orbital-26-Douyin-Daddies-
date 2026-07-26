@@ -9,7 +9,7 @@ import DashboardPage from './pages/DashboardPage'
 import InboxPage from './pages/InboxPage'
 import CreditsPage from './pages/CreditsPage'
 import ReviewPage from './pages/ReviewPage'
-
+import ProfileEditPage   from './pages/ProfileEditPage'
 
 function ProtectedRoute({ children }) {
   const { user, profile, loading } = useAuth()
@@ -54,6 +54,12 @@ export default function App() {
               <ProfileCreatePage />
             </ProtectedRoute>
           } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute>
+            <ProfileEditPage />
+            </ProtectedRoute>
+} />
 
           <Route path="/dashboard" element={
             <ProtectedRoute>
